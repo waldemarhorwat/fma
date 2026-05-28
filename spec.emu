@@ -4,36 +4,70 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/styles/github.min.css">
 <script src="./spec.js"></script>
 <pre class="metadata">
-title: Proposal Title Goes Here
-stage: -1
-contributors: Your Name(s) Here
+title: Fused Multiply Add
+stage: 0
+contributors: Waldemar Horwat
 </pre>
 
-<emu-clause id="sec-demo-clause">
-  <h1>This is an emu-clause</h1>
-  <p>This is an algorithm:</p>
-  <emu-alg>
-    1. Let _proposal_ be *undefined*.
-    1. If IsAccepted(_proposal_) is *true*, then
-      1. Let _stage_ be *0*<sub>ℤ</sub>.
-    1. Else,
-      1. Let _stage_ be *-1*<sub>ℤ</sub>.
-    1. Return ? ToString(_stage_).
-  </emu-alg>
-</emu-clause>
-
-<emu-clause id="sec-is-accepted" type="abstract operation">
+<emu-clause id="sec-fmamultiply" type="abstract operation">
   <h1>
-      IsAccepted (
-        _proposal_: an ECMAScript language value
-      ): a Boolean
+    FMAMultiply (
+      _x_: a Number,
+      _y_: a Number,
+    ): either a non-zero mathematical value, ~not-a-number~, ~positive-infinity~, ~negative-infinity~, ~positive-zero~, or ~negative-zero~
   </h1>
   <dl class="header">
     <dt>description</dt>
-    <dd>Tells you if the proposal was accepted</dd>
+    <dd>It computes the exact mathematical product of _x_ and _y_.
+    <p>The behaviour matches that of Number::multiply except that no rounding takes place and the result
+    is either an exact non-zero mathematical value or an enum indicating a signed zero, a signed infinity, or NaN.</p>
+    </dd>
   </dl>
   <emu-alg>
-    1. If _proposal_ is not a String, or is not accepted, return *false*.
-    1. Return *true*.
+    1. If _x_ is *NaN* or _y_ is *NaN*, return ~not-a-number~.
+    1. Let _sign_ be 1.
+    1. If _x_ is *-0*<sub>𝔽</sub> or _x_ < *-0*<sub>𝔽</sub>, then
+      1. Set _x_ to Number::unaryMinus(_x_).
+      1. Set _sign_ to -_sign_.
+    1. If _y_ is *-0*<sub>𝔽</sub> or _y_ < *-0*<sub>𝔽</sub>, then
+      1. Set _y_ to Number::unaryMinus(_y_).
+      1. Set _sign_ to -_sign_.
+    1. Assert: _x_ and _y_ both have positive signs.
+    1. If _x_ is *+∞*<sub>𝔽</sub> or _y_ is *+∞*<sub>𝔽</sub>, then
+      1. If _x_ is *+0*<sub>𝔽</sub> or _y_ is *+0*<sub>𝔽</sub>, return ~not-a-number~.
+      1. If _sign_ is -1, return ~negative-infinity~.
+      1. Return ~positive-infinity~.
+    1. If _x_ is *+0*<sub>𝔽</sub> or _y_ is *+0*<sub>𝔽</sub>, then
+      1. If _sign_ is -1, return ~negative-zero~.
+      1. Return ~positive-zero~.
+    1. Assert: _x_ and _y_ are both non-zero and finite.
+    1. Return _sign_ × ℝ(_x_) × ℝ(_y_).
   </emu-alg>
+</emu-clause>
+
+<emu-clause id="sec-math.fma" type="built-in function">
+  <h1>Math.fma ( _x_, _y_, _z_ )</h1>
+  <p>This function performs fused multiply-add according to the rules of IEEE 754-2019 binary double-precision arithmetic, computing (_x_ × _y_) + _z_ as a single operation with no intermediate rounding of the product.</p>
+  <p>It performs the following steps when called:</p>
+  <emu-alg>
+    1. Let _nx_ be ? ToNumber(_x_).
+    1. Let _ny_ be ? ToNumber(_y_).
+    1. Let _nz_ be ? ToNumber(_z_).
+    1. Let _product_ be FMAMultiply(_nx_, _ny_).
+    1. If _product_ is ~not-a-number~ or _nz_ is *NaN*, return *NaN*.
+    1. If _product_ is ~positive-infinity~, then
+      1. If _nz_ is *-∞*<sub>𝔽</sub>, return *NaN*.
+      1. Return *+∞*<sub>𝔽</sub>.
+    1. If _product_ is ~negative-infinity~, then
+      1. If _nz_ is *+∞*<sub>𝔽</sub>, return *NaN*.
+      1. Return *-∞*<sub>𝔽</sub>.
+    1. If _nz_ is either *+∞*<sub>𝔽</sub> or *-∞*<sub>𝔽</sub>, return _nz_.
+    1. If _product_ is ~negative-zero~, return _nz_.
+    1. If _product_ is ~positive-zero~, set _product_ to 0.
+    1. Assert: _product_ and _nz_ are both finite.
+    1. Return 𝔽(_product_ + ℝ(_nz_)).
+  </emu-alg>
+  <emu-note>
+    <p>The single call to 𝔽 in the final step performs exactly one rounding of the infinite-precision product and sum.</p>
+  </emu-note>
 </emu-clause>

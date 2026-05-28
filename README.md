@@ -1,50 +1,35 @@
-# template-for-proposals
+# Fused Multiply-Add
 
-A repository template for ECMAScript proposals.
+Stage: 0
 
-## Before creating a proposal
+Champion: Waldemar Horwat @waldemarhorwat
 
-Please ensure the following:
-  1. You have read the [process document](https://tc39.github.io/process-document/)
-  1. You have reviewed the [existing proposals](https://github.com/tc39/proposals/)
-  1. You are aware that your proposal requires being a member of TC39, or locating a TC39 delegate to “champion” your proposal
+[Draft spec](https://waldemarhorwat.github.io/fma/)
 
-## Create your proposal repo
+Fused multiply-add is a three-operand IEEE floating-point operation that performs the computation $x × y + z$ with no intermediate rounding of the product — only the final result is rounded.  It is a standard operation supported by modern floating-point hardware and mandated by IEEE 754-2019.
 
-Follow these steps:
-  1. Click the green [“use this template”](https://github.com/tc39/template-for-proposals/generate) button in the repo header. (Note: Do not fork this repo in GitHub's web interface, as that will later prevent transfer into the TC39 organization)
-  1. Update ecmarkup and the biblio to the latest version: `npm install --save-dev ecmarkup@latest && npm install --save-dev --save-exact @tc39/ecma262-biblio@latest`.
-  1. Go to your repo settings page:
-      1. Under “General”, under “Features”, ensure “Issues” is checked, and disable “Wiki”, and “Projects” (unless you intend to use Projects)
-      1. Under “Pull Requests”, check “Always suggest updating pull request branches” and “automatically delete head branches”
-      1. Under the “Pages” section on the left sidebar, and set the source to “deploy from a branch”, select “gh-pages” in the branch dropdown, and then ensure that “Enforce HTTPS” is checked.
-      1. Under the “Actions” section on the left sidebar, under “General”, select “Read and write permissions” under “Workflow permissions” and click “Save”
-  1. [“How to write a good explainer”][explainer] explains how to make a good first impression.
+## Background
 
-      > Each TC39 proposal should have a `README.md` file which explains the purpose
-      > of the proposal and its shape at a high level.
-      >
-      > ...
-      >
-      > The rest of this page can be used as a template ...
+The IEEE 754 standard mandates, in addition to other kinds of operations, six basic arithmetic operations: +, -, ×, /, square root, and fused multiply-add.  The first five were original, while fused multiply-add was added in IEEE 754-2008.
 
-      Your explainer can point readers to the `index.html` generated from `spec.emu`
-      via markdown like
+ECMAScript has implemented the first five of these since the beginning, but has not included fused multiply-add when the IEEE 754 spec was updated in 2008.  We propose adding it to the language.
 
-      ```markdown
-      You can browse the [ecmarkup output](https://ACCOUNT.github.io/PROJECT/)
-      or browse the [source](https://github.com/ACCOUNT/PROJECT/blob/HEAD/spec.emu).
-      ```
+Fused multiply-add is supported with IEEE 754 semantics in other major programming languages, including:
+* C/C++: [`fma`, `fmaf`, `fmal`](https://en.cppreference.com/cpp/numeric/math/fma)
+* Java `Math.Fma`
+* C# [`Math.FusedMultiplyAdd`](https://learn.microsoft.com/en-us/dotnet/api/system.math.fusedmultiplyadd)
+* Python: [`math.fma`](https://docs.python.org/3/library/math.html#math.fma)
+* Rust: [`mul_add`](https://doc.rust-lang.org/std/primitive.f64.html#method.mul_add)
 
-      where *ACCOUNT* and *PROJECT* are the first two path elements in your project's Github URL.
-      For example, for github.com/**tc39**/**template-for-proposals**, *ACCOUNT* is “tc39”
-      and *PROJECT* is “template-for-proposals”.
+## Usage
 
+[Fused multiply-add](https://en.wikipedia.org/wiki/Multiply%E2%80%93accumulate_operation), a basic floating-point instruction supported by modern hardware, is essential for correctness and performance in many numerical algorithms. Its lack in ECMAScript presents a challenge to anyone trying to adapt code that makes use of it in other languages — fused multiply-add is difficult to implement as a library, requiring hundreds of lines of slow and tricky code.
 
-## Maintain your proposal repo
+Common uses include computing dot products, matrix multiplication, evaluating polynomials, and neural network applications.
 
-  1. Make your changes to `spec.emu` (ecmarkup uses HTML syntax, but is not HTML, so I strongly suggest not naming it “.html”)
-  1. Any commit that makes meaningful changes to the spec, should run `npm run build` to verify that the build will succeed and the output looks as expected.
-  1. Whenever you update `ecmarkup`, run `npm run build` to verify that the build will succeed and the output looks as expected.
+For a simple example of how one can use fused multiply-add, here's how we can compute the exact product of Numbers $a$ and $b$ with no rounding:
 
-  [explainer]: https://github.com/tc39/how-we-work/blob/HEAD/explainer.md
+`let high = a * b` (using standard IEEE 754 multiplication)
+`let err = Math.fma(a, b, -high)`
+
+At this point, barring overflow or underflow of Number's exponent range, $MV(a) × MV(b) = MV(high) + MV(err)$, with $high$ containing the most significant bits of the result and $err$ containing the least significant bits of the result.
