@@ -30,6 +30,7 @@ Common uses include computing dot products, matrix multiplication, evaluating po
 For a simple example of how one can use fused multiply-add, here's how we can compute the exact product of Numbers $a$ and $b$ with no rounding:
 
 `let high = a * b` (using standard IEEE 754 multiplication)
+
 `let err = Math.fma(a, b, -high)`
 
 At this point, barring overflow or underflow of Number's exponent range, $MV(a) × MV(b) = MV(high) + MV(err)$, with $high$ containing the most significant bits of the result and $err$ containing the least significant bits of the result.
